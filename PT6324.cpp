@@ -10,6 +10,10 @@
 #include "PT6324.h"
 #include <SPI.h>
 
+
+// We need this because the encoding of the number of digits doesn't follow common conventions
+const uint8_t digitsMask[9] = { 0x0, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF };
+
 // Minimum timing constraints (datasheet, timing characteristics):
 //   PW_STB (strobe pulse width)   >= 1000 ns
 //   twait (command byte to first
@@ -35,7 +39,8 @@ void PT6324::begin() {
     SPI.setSCK(_sck);
     SPI.setTX(_mosi);
     SPI.setCS(_strobe);
-    SPI.begin(true);
+
+    SPI.begin(true); // True means we're using hardware controlled CS.
 
     // Power-on flow (see datasheet "Recommended Software Flowchart"):
     // 1. clear the Display RAM (undefined at power on)
@@ -61,9 +66,9 @@ bool PT6324::setDigits(uint8_t digits) {
     _digits = digits;
 
     // Command 1: 0000 b3 b2 b1 b0, 0000 = 8 digits, 1111 = 16 digits
-    const uint8_t cmd = (digits - MIN_DIGITS) & 0x0F;
+    const uint8_t cmd = digitsMask[digits - MIN_DIGITS];
     SPI.beginTransaction(_settings);
-    _sendByte(cmd);
+    SPI.transfer(cmd);
     SPI.endTransaction();
     return true;
 }
@@ -76,13 +81,10 @@ bool PT6324::writeData(uint8_t address, const uint8_t* data, size_t len) {
     if (address > RAM_MAX_ADDR || len == 0 || address + len > RAM_BYTES) {
         return false;
     }
-
     SPI.beginTransaction(_settings);
-    _sendByte(CMD_WRITE_DATA);      // Command 2: write, address increment
-    _sendByte(CMD_ADDR_BASE | address);  // Command 3: start address
-    for (size_t i = 0; i < len; i++) {
-        _sendByte(data[i]);
-    }
+    SPI.transfer(CMD_WRITE_DATA);           // Command 2: write, address increment
+    SPI.transfer(CMD_ADDR_BASE | address);  // Command 3: start address
+    SPI.transfer(const_cast<uint8_t*>(data), len);
     SPI.endTransaction();
     return true;
 }
@@ -93,9 +95,9 @@ bool PT6324::writeByte(uint8_t address, uint8_t data) {
     }
 
     SPI.beginTransaction(_settings);
-    _sendByte(CMD_WRITE_FIXED);     // Command 2: write, fixed address
-    _sendByte(CMD_ADDR_BASE | address);  // Command 3: address
-    _sendByte(data);
+    SPI.transfer(CMD_WRITE_FIXED);     // Command 2: write, fixed address
+    SPI.transfer(CMD_ADDR_BASE | address);  // Command 3: address
+    SPI.transfer(data);
     SPI.endTransaction();
     return true;
 }
@@ -132,7 +134,7 @@ void PT6324::setDimming(uint8_t level) {
     _dimming = level & 0x07;
     SPI.beginTransaction(_settings);
     // Display stays on (b3 = 1) while the dimming level changes
-    _sendByte(CMD_DISPLAY_BASE | CMD_DISPLAY_ON | _dimming);
+    SPI.transfer(CMD_DISPLAY_BASE | CMD_DISPLAY_ON | _dimming);
     SPI.endTransaction();
 }
 
@@ -141,7 +143,7 @@ void PT6324::setDisplay(bool on, uint8_t dimming) {
     const uint8_t cmd = CMD_DISPLAY_BASE | (_dimming & 0x07)
                        | (on ? CMD_DISPLAY_ON : 0x00);
     SPI.beginTransaction(_settings);
-    _sendByte(cmd);
+    SPI.transfer(cmd);
     SPI.endTransaction();
 }
 
@@ -151,7 +153,7 @@ void PT6324::setDisplay(bool on, uint8_t dimming) {
 
 void PT6324::reset() {
     SPI.beginTransaction(_settings);
-    _sendByte(CMD_RESET);  // Command 2, reset mode: one-time reset
+    SPI.transfer(CMD_RESET);  // Command 2, reset mode: one-time reset
     SPI.endTransaction();
 }
 
@@ -165,35 +167,10 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
     }
 
     SPI.beginTransaction(_settings);
-    _sendByte(CMD_READ_KEY);
+    SPI.transfer(CMD_READ_KEY);
     for (size_t i = 0; i < len; i++) {
-        data[i] = _readByte();
+        data[i] = SPI.transfer(0x00);
     }
     SPI.endTransaction();
     return true;
-}
-
-// ---------------------------------------------------------------------------
-// Low-level transfer primitives
-// ---------------------------------------------------------------------------
-
-void PT6324::_beginFrame() {
-    // STB goes low (chip select asserted)
-    SPI.beginTransaction(_settings);
-}
-
-void PT6324::_endFrame() {
-    // STB goes high (rising edge latches the frame)
-    SPI.endTransaction();
-    delayMicroseconds(STB_PULSE_US);
-}
-
-void PT6324::_sendByte(uint8_t byte) {
-    SPI.transfer(byte);
-    delayMicroseconds(WAIT_TIME_US);
-}
-
-uint8_t PT6324::_readByte() {
-    delayMicroseconds(WAIT_TIME_US);
-    return SPI.transfer(0x00);
 }

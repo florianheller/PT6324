@@ -34,10 +34,11 @@
 #define PT6324_H
 
 #include <Arduino.h>
+#include <SPI.h>
 
 class PT6324 {
 public:
-    using Pin = unsigned int;
+    using Pin = pin_size_t;
 
     // Chip capabilities / limits
     static constexpr uint8_t MIN_DIGITS         = 8;
@@ -215,11 +216,6 @@ private:
     uint8_t _digits = MAX_DIGITS;
     uint8_t _dimming = 3;  // 10/16 pulse width, a sensible default
 
-    // Low-level transfer primitives
-    void _beginFrame();
-    void _endFrame();
-    void _sendByte(uint8_t byte);
-    uint8_t _readByte();
 };
 
 #endif  // PT6324_H
