@@ -1,6 +1,6 @@
 # PT6324
 
-Arduino library for the [Princeton Technology PT6324](https://www.princeton.com.tw) VFD Driver/Controller IC.
+Arduino library for the [Princeton Technology PT6324](https://www.princeton.com.tw) VFD Driver/Controller IC ([Spec sheet](https://support.newhavendisplay.com/hc/en-us/article_attachments/4415110153623)).
 
 ## Chip
 
@@ -13,7 +13,7 @@ Arduino library for the [Princeton Technology PT6324](https://www.princeton.com.
 - VDD 2.7 - 5.5 V, max clock ~2.5 MHz
 
 ## Command set
-
+See the [full datasheet](https://www.alldatasheet.com/datasheet-pdf/pdf/311255/PTC/PT6324.html) for more details. 
 | Command | Encoding              | Function |
 |---------|-----------------------|----------|
 | 1       | `0000 bbbbb`          | Display mode: `bbbb` + 8 digits (8..16) |
