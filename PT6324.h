@@ -216,6 +216,11 @@ private:
     uint8_t _digits = MAX_DIGITS;
     uint8_t _dimming = 3;  // 10/16 pulse width, a sensible default
 
+    // Low-level transfer primitives
+    void _beginFrame();
+    void _endFrame();
+    void _sendByte(uint8_t byte);
+    uint8_t _readByte();
 };
 
 #endif  // PT6324_H
