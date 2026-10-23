@@ -50,6 +50,9 @@ void PT6324::begin() {
     // Order matters: a mode-setting command (Command 1) forces the
     // display OFF, so it has to be executed before the display-on
     // command (Command 4).
+
+    reset();
+    delayMicroseconds(WAIT_TIME_US);
     clear();
     setDigits(MAX_DIGITS);
     setDisplay(true);
@@ -67,9 +70,9 @@ bool PT6324::setDigits(uint8_t digits) {
 
     // Command 1: 0000 b3 b2 b1 b0, 0000 = 8 digits, 1111 = 16 digits
     const uint8_t cmd = digitsMask[digits - MIN_DIGITS];
-    _beginFrame()
-    SPI.transfer(cmd);
-    _endFrame()
+    _beginFrame();
+    _sendByte(cmd);
+    _endFrame();
     return true;
 }
 
@@ -81,11 +84,12 @@ bool PT6324::writeData(uint8_t address, const uint8_t* data, size_t len) {
     if (address > RAM_MAX_ADDR || len == 0 || address + len > RAM_BYTES) {
         return false;
     }
-    _beginFrame()
+    _beginFrame();
     _sendByte(CMD_WRITE_DATA);           // Command 2: write, address increment
     _sendByte(CMD_ADDR_BASE | address);  // Command 3: start address
     SPI.transfer(const_cast<uint8_t*>(data), len);
-    _endFrame()
+    delayMicroseconds(WAIT_TIME_US);
+    _endFrame();
     return true;
 }
 
@@ -94,11 +98,11 @@ bool PT6324::writeByte(uint8_t address, uint8_t data) {
         return false;
     }
 
-    _beginFrame()
+    _beginFrame();
     _sendByte(CMD_WRITE_FIXED);     // Command 2: write, fixed address
     _sendByte(CMD_ADDR_BASE | address);  // Command 3: address
     _sendByte(data);
-    _endFrame()
+    _endFrame();
     return true;
 }
 
@@ -106,7 +110,8 @@ bool PT6324::clear(uint8_t address, size_t len) {
     if (address > RAM_MAX_ADDR || len == 0 || address + len > RAM_BYTES) {
         return false;
     }
-    static const uint8_t zeros[RAM_BYTES] = {0};
+    uint8_t zeros[RAM_BYTES];
+    memset(zeros, 0x0, sizeof(zeros));
     return writeData(address, zeros, len);
 }
 
@@ -132,19 +137,19 @@ void PT6324::setDisplay(bool on) {
 
 void PT6324::setDimming(uint8_t level) {
     _dimming = level & 0x07;
-    _beginFrame()
+    _beginFrame();
     // Display stays on (b3 = 1) while the dimming level changes
     _sendByte(CMD_DISPLAY_BASE | CMD_DISPLAY_ON | _dimming);
-    _endFrame()
+    _endFrame();
 }
 
 void PT6324::setDisplay(bool on, uint8_t dimming) {
     _dimming = dimming & 0x07;
     const uint8_t cmd = CMD_DISPLAY_BASE | (_dimming & 0x07)
                        | (on ? CMD_DISPLAY_ON : 0x00);
-    _beginFrame()
+    _beginFrame();
     _sendByte(cmd);
-    _endFrame()
+    _endFrame();
 }
 
 // ---------------------------------------------------------------------------
@@ -152,9 +157,9 @@ void PT6324::setDisplay(bool on, uint8_t dimming) {
 // ---------------------------------------------------------------------------
 
 void PT6324::reset() {
-    _beginFrame()
+    _beginFrame();
     _sendByte(CMD_RESET);  // Command 2, reset mode: one-time reset
-    _endFrame()
+    _endFrame();
 }
 
 // ---------------------------------------------------------------------------
@@ -166,12 +171,12 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
         return false;
     }
 
-    _beginFrame()
+    _beginFrame();
     _sendByte(CMD_READ_KEY);
     for (size_t i = 0; i < len; i++) {
         data[i] = SPI.transfer(0x00);
     }
-    _endFrame()
+    _endFrame();
     return true;
 }
 
@@ -182,6 +187,8 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
 void PT6324::_beginFrame() {
     // STB goes low (chip select asserted)
     SPI.beginTransaction(_settings);
+    delayMicroseconds(STB_PULSE_US);
+
 }
 
 void PT6324::_endFrame() {
@@ -198,3 +205,4 @@ void PT6324::_sendByte(uint8_t byte) {
 uint8_t PT6324::_readByte() {
     delayMicroseconds(WAIT_TIME_US);
     return SPI.transfer(0x00);
+}
