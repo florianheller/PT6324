@@ -12,20 +12,23 @@
 
 
 // We need this because the encoding of the number of digits doesn't follow common conventions
-const uint8_t digitsMask[9] = { 0x0, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF };
+static constexpr uint8_t digitsMask[9] = { 0x0, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF };
 
 // Minimum timing constraints (datasheet, timing characteristics):
 //   PW_STB (strobe pulse width)   >= 1000 ns
 //   twait (command byte to first
 //   data clock edge)              >= 1000 ns
 //   CLK pulse width               >= 400 ns (max ~2.5 MHz)
+//   t_CLK-STB (time between strobe
+//    change and first/last clock) >= 1000 ns
 //
 // STB is wired as the SPI chip-select pin, so it is driven by the SPI
 // core inside beginTransaction()/endTransaction(). The STB goes high at
 // the end of a transaction; the STB_PULSE_US delay guarantees the
 // minimum STB pulse width between consecutive frames.
-static constexpr uint32_t STB_PULSE_US = 2;   // STB high time after a frame
-static constexpr uint32_t WAIT_TIME_US = 3;   // twait between command and data
+static constexpr uint32_t STB_PULSE_US = 1;   // STB high time after a frame
+static constexpr uint32_t WAIT_TIME_US = 2;   // twait between command and data
+static constexpr uint32_t CLK_STB_US = 1;
 
 PT6324::PT6324(Pin strobe, Pin sck, Pin mosi, Pin miso, uint32_t clock)
     : _strobe(strobe), _sck(sck), _mosi(mosi), _miso(miso) {
@@ -88,7 +91,6 @@ bool PT6324::writeData(uint8_t address, const uint8_t* data, size_t len) {
     _sendByte(CMD_WRITE_DATA);           // Command 2: write, address increment
     _sendByte(CMD_ADDR_BASE | address);  // Command 3: start address
     SPI.transfer(const_cast<uint8_t*>(data), len);
-    delayMicroseconds(WAIT_TIME_US);
     _endFrame();
     return true;
 }
@@ -110,7 +112,7 @@ bool PT6324::clear(uint8_t address, size_t len) {
     if (address > RAM_MAX_ADDR || len == 0 || address + len > RAM_BYTES) {
         return false;
     }
-    uint8_t zeros[RAM_BYTES];
+    const uint8_t zeros[RAM_BYTES];
     memset(zeros, 0x0, sizeof(zeros));
     return writeData(address, zeros, len);
 }
@@ -187,19 +189,22 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
 void PT6324::_beginFrame() {
     // STB goes low (chip select asserted)
     SPI.beginTransaction(_settings);
-    delayMicroseconds(STB_PULSE_US);
+    // t_CLK-STB min 1000ns
+    delayMicroseconds(CLK_STB_US);
 
 }
 
 void PT6324::_endFrame() {
     // STB goes high (rising edge latches the frame)
+    // t_CLK-STB min 1000ns
+    delayMicroseconds(CLK_STB_US);
     SPI.endTransaction();
+    // Ensure the minimum wait time between two commands (PW_STB = 1000ns)
     delayMicroseconds(STB_PULSE_US);
 }
 
 void PT6324::_sendByte(uint8_t byte) {
     SPI.transfer(byte);
-    delayMicroseconds(WAIT_TIME_US);
 }
 
 uint8_t PT6324::_readByte() {
