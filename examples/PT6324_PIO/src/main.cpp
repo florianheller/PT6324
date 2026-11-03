@@ -8,7 +8,7 @@ unsigned long lastUpdate = 0;
 
 // Running on Core 0
 
-
+bool state = false;
 
 void setup() {
  
