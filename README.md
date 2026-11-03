@@ -39,12 +39,11 @@ vfd.writeData(0, frame, 48);
 vfd.setDimming(7);             // 14/16 pulse width
 ```
 
-See `examples/PT6324Demo` for a complete example including the button
-synchronisation groups (grids 12..16) used by the CDJ-100 board.
+See `examples/PT6324Demo` for an Arudino sketch or `examples/PT6324_PIO_` for an example using Platform IO and VS Code. 
 
 ## Wiring notes
 
-- STB, CLK, DIN are 5 V logic on the CDJ-100 board -> level-shift (TXB0108, no internal pull-ups)
+- STB, CLK, DIN, DOUT are 5 V logic -> level-shift if connected to a 3V3 board (TXS0108)
 - DOUT (key scan) needs an external pull-up (1 k..10 k to VDD)
 - `begin()` runs the datasheet power-on sequence: clear RAM -> set mode -> display on
 
