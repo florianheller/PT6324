@@ -112,7 +112,7 @@ bool PT6324::clear(uint8_t address, size_t len) {
     if (address > RAM_MAX_ADDR || len == 0 || address + len > RAM_BYTES) {
         return false;
     }
-    const uint8_t zeros[RAM_BYTES];
+    uint8_t zeros[RAM_BYTES];
     memset(zeros, 0x0, sizeof(zeros));
     return writeData(address, zeros, len);
 }
