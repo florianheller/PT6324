@@ -17,7 +17,7 @@ static constexpr uint8_t digitsMask[9] = { 0x0, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0x
 // Minimum timing constraints (datasheet, timing characteristics):
 //   PW_STB (strobe pulse width)   >= 1000 ns
 //   twait (command byte to first
-//   data clock edge)              >= 1000 ns
+//   data clock edge when reading) >= 1000 ns
 //   CLK pulse width               >= 400 ns (max ~2.5 MHz)
 //   t_CLK-STB (time between strobe
 //    change and first/last clock) >= 1000 ns
@@ -27,7 +27,7 @@ static constexpr uint8_t digitsMask[9] = { 0x0, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0x
 // the end of a transaction; the STB_PULSE_US delay guarantees the
 // minimum STB pulse width between consecutive frames.
 static constexpr uint32_t STB_PULSE_US = 1;   // STB high time after a frame
-static constexpr uint32_t WAIT_TIME_US = 2;   // twait between command and data
+static constexpr uint32_t WAIT_TIME_US = 1;   // twait between command and data
 static constexpr uint32_t CLK_STB_US = 1;
 
 PT6324::PT6324(Pin strobe, Pin sck, Pin mosi, Pin miso, uint32_t clock)
@@ -41,9 +41,9 @@ void PT6324::begin() {
     }
     SPI.setSCK(_sck);
     SPI.setTX(_mosi);
-    SPI.setCS(_strobe);
+    pinMode(_strobe, OUTPUT);
 
-    SPI.begin(true); // True means we're using hardware controlled CS.
+    SPI.begin();
 
     // Power-on flow (see datasheet "Recommended Software Flowchart"):
     // 1. clear the Display RAM (undefined at power on)
@@ -193,15 +193,16 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
 void PT6324::_beginFrame() {
     // STB goes low (chip select asserted)
     SPI.beginTransaction(_settings);
+    digitalWrite(_strobe, LOW);
     // t_CLK-STB min 1000ns
     delayMicroseconds(CLK_STB_US);
-
 }
 
 void PT6324::_endFrame() {
     // STB goes high (rising edge latches the frame)
     // t_CLK-STB min 1000ns
     delayMicroseconds(CLK_STB_US);
+    digitalWrite(_strobe, HIGH);
     SPI.endTransaction();
     // Ensure the minimum wait time between two commands (PW_STB = 1000ns)
     delayMicroseconds(STB_PULSE_US);
