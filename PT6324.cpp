@@ -89,6 +89,8 @@ bool PT6324::writeData(uint8_t address, const uint8_t* data, size_t len) {
     }
     _beginFrame();
     _sendByte(CMD_WRITE_DATA);           // Command 2: write, address increment
+    _endFrame();
+    _beginFrame();
     _sendByte(CMD_ADDR_BASE | address);  // Command 3: start address
     SPI.transfer(const_cast<uint8_t*>(data), len);
     _endFrame();
@@ -102,6 +104,8 @@ bool PT6324::writeByte(uint8_t address, uint8_t data) {
 
     _beginFrame();
     _sendByte(CMD_WRITE_FIXED);     // Command 2: write, fixed address
+    _endFrame();
+    _beginFrame();
     _sendByte(CMD_ADDR_BASE | address);  // Command 3: address
     _sendByte(data);
     _endFrame();
