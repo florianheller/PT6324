@@ -193,7 +193,7 @@ bool PT6324::readKeys(uint8_t* data, size_t len) {
 void PT6324::_beginFrame() {
     // STB goes low (chip select asserted)
     SPI.beginTransaction(_settings);
-    digitalWrite(_strobe, LOW);
+    digitalWriteFast(_strobe, LOW);
     // t_CLK-STB min 1000ns
     delayMicroseconds(CLK_STB_US);
 }
@@ -202,7 +202,7 @@ void PT6324::_endFrame() {
     // STB goes high (rising edge latches the frame)
     // t_CLK-STB min 1000ns
     delayMicroseconds(CLK_STB_US);
-    digitalWrite(_strobe, HIGH);
+    digitalWriteFast(_strobe, HIGH);
     SPI.endTransaction();
     // Ensure the minimum wait time between two commands (PW_STB = 1000ns)
     delayMicroseconds(STB_PULSE_US);
